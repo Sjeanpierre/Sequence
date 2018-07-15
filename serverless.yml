@@ -1,0 +1,35 @@
+service: Sequence
+
+provider:
+  name: aws
+  runtime: go1.x
+  region: eu-west-1
+  profile: prod
+  stage: global
+  memorySize: 128
+
+  iamRoleStatements:
+      - Effect: "Allow"
+        Action:
+          - "dynamodb:UpdateItem"
+        Resource:
+          'Fn::Join':
+            - ':'
+            -
+              - 'arn:aws:dynamodb'
+              - Ref: 'AWS::Region'
+              - Ref: 'AWS::AccountId'
+              - 'table/ASGSequences*'
+package:
+ exclude:
+   - ./**
+ include:
+   - ./bin/**
+
+functions:
+  squence:
+    handler: bin/Sequence
+    events:
+      - http:
+          path: next-id
+          method: post
