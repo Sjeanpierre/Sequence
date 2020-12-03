@@ -11,6 +11,7 @@ import (
 	"log"
 	"encoding/json"
 	"errors"
+	"os"
 )
 
 func Handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse,error) {
@@ -25,6 +26,10 @@ func Handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	if err != nil {
 		errorMessage := fmt.Sprintf("%s,%s","Could not calculate next in sequence",err)
 		return events.APIGatewayProxyResponse{Body: respJSON(errorMessage,"FAILED",""), StatusCode: 422},nil
+	}
+	// Pad single digit numbers with leading zero so that 1 turns into 01
+	if len(nextINT) == 1 {
+		nextINT = fmt.Sprintf("0%s",nextINT)
 	}
 	next := fmt.Sprintf("%s-%s",group,nextINT)
 	return events.APIGatewayProxyResponse{Body: respJSON("Success","Success",next), StatusCode: 201}, nil
@@ -45,7 +50,7 @@ func respJSON(message, status, data string) string {
 func GetNext(identifier string) (nextSequence string, e error){
 	//https://docs.aws.amazon.com/cli/latest/reference/dynamodb/update-item.html#options
 	//https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Expressions.UpdateExpressions.html#Expressions.UpdateExpressions.ADD
-	sessionInfo, err := session.NewSession(&aws.Config{Region: aws.String("eu-west-1")})
+	sessionInfo, err := session.NewSession(&aws.Config{Region: aws.String(os.Getenv("AWS_REGION"))})
 	if err != nil {
 		return "0",errors.New("service could not create AWS session:" + err.Error())
 	}
@@ -62,7 +67,7 @@ func GetNext(identifier string) (nextSequence string, e error){
 			},
 		},
 		ReturnValues:     aws.String("ALL_NEW"),
-		TableName:        aws.String("ASGSequences"),
+		TableName:        aws.String(os.Getenv("DYNAMO_TABLE")),
 		UpdateExpression: aws.String("ADD SequenceNumber :incr"),
 	}
 	res, err := svc.UpdateItem(input)
